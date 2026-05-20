@@ -401,3 +401,77 @@ def api_admin_add_station(request):
     except (ValueError, TypeError) as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=400)
 
+
+
+# --- SERVER SETUP (BIR MARTA) ---
+def setup_server(request):
+    """
+    /setup/?key=metan2024 - migrations, seed, admin yaratish
+    """
+    from django.http import HttpResponse, HttpResponseForbidden
+    if request.GET.get('key') != 'metan2024':
+        return HttpResponseForbidden('Ruxsat yo\'q!')
+    log = []
+    try:
+        from django.core.management import call_command
+        import io
+        buf = io.StringIO()
+        call_command('migrate', '--run-syncdb', stdout=buf, stderr=buf)
+        log.append('✅ migrate OK: ' + buf.getvalue()[-200:].strip())
+    except Exception as e:
+        log.append(f'❌ migrate xato: {e}')
+    try:
+        from django.core.management import call_command
+        import io
+        buf2 = io.StringIO()
+        call_command('seed_data', stdout=buf2, stderr=buf2)
+        log.append('✅ seed_data OK')
+    except Exception as e:
+        log.append(f'❌ seed_data: {e}')
+    try:
+        from django.contrib.auth.models import User
+        if not User.objects.filter(username='admin').exists():
+            User.objects.create_superuser('admin', 'admin@mail.com', 'admin123')
+            log.append('✅ Admin: login=admin parol=admin123')
+        else:
+            log.append('ℹ️ Admin allaqachon bor')
+    except Exception as e:
+        log.append(f'❌ Admin: {e}')
+    html = '<h1>Smart Metan Setup</h1><pre>' + '\n'.join(log) + '</pre><a href="/">Asosiy sahifaga</a>'
+    return HttpResponse(html)
+
+# --- SETUP (BIR MARTA BAJARISH) ---
+def setup_server(request):
+    from django.http import HttpResponse, HttpResponseForbidden
+    SECRET = 'metan2024'
+    if request.GET.get('key') != SECRET:
+        return HttpResponseForbidden('Ruxsat yo\'q! ?key=metan2024 qo\'shing')
+    log = []
+    try:
+        from django.core.management import call_command
+        import io
+        out = io.StringIO()
+        call_command('migrate', '--run-syncdb', stdout=out, stderr=out)
+        log.append('✅ migrate OK')
+    except Exception as e:
+        log.append(f'❌ migrate: {e}')
+    try:
+        from django.core.management import call_command
+        import io
+        out2 = io.StringIO()
+        call_command('seed_data', stdout=out2, stderr=out2)
+        log.append('✅ seed_data OK')
+    except Exception as e:
+        log.append(f'❌ seed_data: {e}')
+    try:
+        from django.contrib.auth.models import User
+        if not User.objects.filter(username='admin').exists():
+            User.objects.create_superuser('admin', 'admin@mail.com', 'admin123')
+            log.append('✅ Admin: login=admin, parol=admin123')
+        else:
+            log.append('ℹ️ Admin allaqachon bor')
+    except Exception as e:
+        log.append(f'❌ admin: {e}')
+    html = '<h2>✅ Smart Metan Setup</h2><pre style="font-size:18px">' + '\n'.join(log) + '</pre>'
+    html += '<br><br><a href="/" style="font-size:20px">🏠 Asosiy sahifaga o\'ting</a>'
+    return HttpResponse(html)

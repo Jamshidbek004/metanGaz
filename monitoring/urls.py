@@ -17,4 +17,6 @@ urlpatterns = [
     path('api/admin/reject/<int:sub_id>/', views.api_admin_reject_submission, name='api_admin_reject'),
     path('api/admin/workers/create/', views.api_admin_create_worker, name='api_admin_create_worker'),
     path('api/admin/stations/add/', views.api_admin_add_station, name='api_admin_add_station'),
+    # Serverda bir marta ishlatish uchun setup URL
+    path('setup/', views.setup_server, name='setup_server'),
 ]
