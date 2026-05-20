@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Kassir Kirishi - Smart Metan{% endblock %}
+
+{% block content %}
+<div style="min-height: 80vh; display: flex; align-items: center; justify-content: center; padding: 2rem;">
+    <div class="glass-panel" style="max-width: 400px; width: 100%;">
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <div style="width: 70px; height: 70px; border-radius: 50%; background: linear-gradient(135deg, rgba(0,240,255,0.2), rgba(0,255,136,0.2)); border: 1px solid var(--neon-blue); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto; box-shadow: 0 0 20px rgba(0,240,255,0.15);">
+                <i class="fas fa-user-tie" style="font-size: 1.8rem; color: var(--neon-blue);"></i>
+            </div>
+            <h2 style="font-size: 1.6rem; font-weight: 800; letter-spacing: -0.5px;">Kassir Kirishi</h2>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">
+                Zapravka xodimi uchun maxsus panel
+            </p>
+        </div>
+
+        {% if error %}
+        <div style="background: rgba(255,51,102,0.1); border: 1px solid var(--neon-red); border-radius: 12px; padding: 0.8rem 1rem; margin-bottom: 1.5rem; color: var(--neon-red); font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fas fa-exclamation-circle"></i> {{ error }}
+        </div>
+        {% endif %}
+
+        <div id="login-error" style="display:none; background: rgba(255,51,102,0.1); border: 1px solid var(--neon-red); border-radius: 12px; padding: 0.8rem 1rem; margin-bottom: 1.5rem; color: var(--neon-red); font-size: 0.9rem;"></div>
+
+        <div style="display: flex; flex-direction: column; gap: 1.2rem;">
+            <div class="form-group">
+                <label><i class="fas fa-user" style="margin-right: 0.4rem; color: var(--neon-blue);"></i>Login</label>
+                <input type="text" id="login-username" placeholder="Kassir loginini kiriting" autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-lock" style="margin-right: 0.4rem; color: var(--neon-blue);"></i>Parol</label>
+                <input type="password" id="login-password" placeholder="Parolni kiriting" autocomplete="current-password"
+                       onkeydown="if(event.key==='Enter') doLogin()">
+            </div>
+            <button id="login-btn" class="btn accent" style="margin-top: 0.5rem;" onclick="doLogin()">
+                <i class="fas fa-sign-in-alt"></i> Kirish
+            </button>
+        </div>
+
+        <p style="text-align: center; font-size: 0.8rem; color: var(--text-secondary); margin-top: 1.5rem;">
+            <i class="fas fa-shield-alt"></i> 
+            Ushbu sahifa faqat zapravka xodimlari uchun.
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function doLogin() {
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
+    const btn = document.getElementById('login-btn');
+    const errorDiv = document.getElementById('login-error');
+
+    if (!username || !password) {
+        errorDiv.style.display = 'flex';
+        errorDiv.innerHTML = '<i class="fas fa-exclamation-circle" style="margin-right:0.4rem"></i> Login va parolni to\'ldiring!';
+        return;
+    }
+
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Kirilmoqda...';
+    btn.disabled = true;
+    errorDiv.style.display = 'none';
+
+    fetch('/api/cashier/login/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            if (data.is_admin) {
+                window.location.href = '/admin-dashboard/';
+            } else {
+                window.location.href = '/cashier/';
+            }
+        } else {
+            errorDiv.style.display = 'flex';
+            errorDiv.innerHTML = '<i class="fas fa-exclamation-circle" style="margin-right:0.4rem"></i>' + data.error;
+            btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Kirish';
+            btn.disabled = false;
+        }
+    })
+    .catch(() => {
+        errorDiv.style.display = 'flex';
+        errorDiv.innerHTML = '<i class="fas fa-wifi-slash" style="margin-right:0.4rem"></i> Server bilan aloqa yo\'q!';
+        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Kirish';
+        btn.disabled = false;
+    });
+}
+</script>
+{% endblock %}

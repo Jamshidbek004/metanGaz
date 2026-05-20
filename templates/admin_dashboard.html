@@ -1,0 +1,321 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Admin Dashboard - Smart Metan{% endblock %}
+
+{% block content %}
+<div style="max-width: 1200px; margin: 2rem auto; padding: 0 1.5rem;">
+
+    <!-- Admin Header -->
+    <div style="margin-bottom: 2rem; display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem;">
+        <div>
+            <h1 style="font-size: 1.8rem; font-weight: 800; background: linear-gradient(135deg, var(--neon-blue), var(--neon-green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                ⚙️ Admin Boshqaruv Paneli
+            </h1>
+            <p style="color: var(--text-secondary); margin-top: 0.3rem;">Smart Metan monitoring tizimi</p>
+        </div>
+        <a href="/django-admin/" class="nav-btn primary" target="_blank">
+            <i class="fas fa-database"></i> Django Admin
+        </a>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="info-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 2rem; gap: 1rem;">
+        <div class="info-item glass-panel">
+            <h5>Jami Zapravkalar</h5>
+            <p style="color: var(--neon-blue);">{{ stations.count }}</p>
+        </div>
+        <div class="info-item glass-panel">
+            <h5>Tasdiqlangan</h5>
+            <p style="color: var(--neon-green);">{{ stations|length }}</p>
+        </div>
+        <div class="info-item glass-panel">
+            <h5>Yangi Arizalar</h5>
+            <p style="color: var(--neon-yellow);">{{ submissions.count }}</p>
+        </div>
+        <div class="info-item glass-panel">
+            <h5>Ishlayotgan</h5>
+            <p style="color: var(--neon-green);">
+                {% with cnt=0 %}
+                    {% for s in stations %}{% if s.status != 'BLACK' %}{{ forloop.counter }}{% endif %}{% endfor %}
+                {% endwith %}
+            </p>
+        </div>
+    </div>
+
+    <div class="admin-grid">
+
+        <!-- Left: Stations Table -->
+        <div>
+            <div class="glass-panel" style="margin-bottom: 2rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem; flex-wrap:wrap; gap:1rem;">
+                    <h3 style="font-size: 1.1rem; font-weight: 700;">
+                        <i class="fas fa-gas-pump" style="color: var(--neon-blue);"></i> Barcha Zapravkalar
+                    </h3>
+                </div>
+
+                {% for station in stations %}
+                <div style="display:flex; justify-content:space-between; align-items:center; padding: 0.85rem 0; border-bottom: 1px solid rgba(255,255,255,0.04); flex-wrap: wrap; gap: 0.5rem;">
+                    <div>
+                        <div style="font-weight: 600; font-size: 0.95rem;">{{ station.name }}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">{{ station.region }}, {{ station.district }}</div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap: 0.75rem;">
+                        {% if station.status == 'GREEN' %}
+                            <span class="status-badge green">🟢 Kam</span>
+                        {% elif station.status == 'YELLOW' %}
+                            <span class="status-badge yellow">🟡 O'rtacha</span>
+                        {% elif station.status == 'RED' %}
+                            <span class="status-badge red">🔴 Ko'p</span>
+                        {% elif station.status == 'BLACK' %}
+                            <span class="status-badge black">⚫ Yopiq</span>
+                        {% else %}
+                            <span class="status-badge white">⚪ Noma'lum</span>
+                        {% endif %}
+                        {% if not station.has_power %}
+                            <span style="font-size: 0.75rem; color: var(--neon-red);"><i class="fas fa-bolt"></i> Tok yo'q</span>
+                        {% endif %}
+                        <span style="font-size: 0.8rem; color: var(--neon-green);">{{ station.price }} so'm</span>
+                    </div>
+                </div>
+                {% empty %}
+                <p style="color: var(--text-secondary); text-align: center; padding: 2rem 0;">Hozircha zapravkalar yo'q.</p>
+                {% endfor %}
+            </div>
+
+            <!-- Direct Add Station Form -->
+            <div class="glass-panel" style="margin-bottom: 1.5rem;">
+                <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1.5rem;">
+                    <i class="fas fa-plus-circle" style="color: var(--neon-blue);"></i> Yangi Zapravka Qo'shish
+                </h3>
+                <div id="add-station-msg" style="display:none; padding: 0.7rem; border-radius: 10px; font-size: 0.85rem; margin-bottom: 1rem;"></div>
+                <div style="display:flex; flex-direction:column; gap: 0.9rem;">
+                    <div class="form-group">
+                        <label>Zapravka nomi *</label>
+                        <input type="text" id="as-name" placeholder="Masalan: Yunusobod Metan Oazis">
+                    </div>
+                    <div class="form-group">
+                        <label>To'liq manzili *</label>
+                        <input type="text" id="as-address" placeholder="Ko'cha, uy raqami">
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                        <div class="form-group">
+                            <label>Viloyat *</label>
+                            <select id="as-region">
+                                <option value="">— Tanlang —</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Tuman *</label>
+                            <select id="as-district" disabled>
+                                <option value="">— Tanlang —</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                        <div class="form-group">
+                            <label>Kenglik (Lat) *</label>
+                            <input type="number" step="any" id="as-lat" placeholder="41.3110">
+                        </div>
+                        <div class="form-group">
+                            <label>Uzunlik (Lng) *</label>
+                            <input type="number" step="any" id="as-lng" placeholder="69.2405">
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                        <div class="form-group">
+                            <label>Telefon</label>
+                            <input type="text" id="as-phone" placeholder="+998901234567">
+                        </div>
+                        <div class="form-group">
+                            <label>Narx (so'm/m³)</label>
+                            <input type="number" id="as-price" value="3800" min="1000">
+                        </div>
+                    </div>
+                    <button class="btn accent" onclick="adminAddStation()">
+                        <i class="fas fa-plus"></i> Zapravkani qo'shish va tasdiqlash
+                    </button>
+                </div>
+            </div>
+
+            <!-- New Worker Creation Form -->
+            <div class="glass-panel">
+                <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1.5rem;">
+                    <i class="fas fa-user-plus" style="color: var(--neon-green);"></i> Kassir Yaratish
+                </h3>
+                <div id="worker-msg" style="display:none; padding: 0.7rem; border-radius: 10px; font-size: 0.85rem; margin-bottom: 1rem;"></div>
+                <div style="display:flex; flex-direction:column; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Login (Username)</label>
+                        <input type="text" id="new-username" placeholder="Masalan: kassir_yunusobod">
+                    </div>
+                    <div class="form-group">
+                        <label>Parol</label>
+                        <input type="password" id="new-password" placeholder="Xavfsiz parol kiriting">
+                    </div>
+                    <div class="form-group">
+                        <label>Zapravkani tanlang</label>
+                        <select id="new-station-id">
+                            <option value="">— Zapravkani tanlang —</option>
+                            {% for station in stations %}
+                                <option value="{{ station.id }}">{{ station.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button class="btn accent" onclick="createWorker()">
+                        <i class="fas fa-user-plus"></i> Kassir Yaratish va Biriktirish
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Submissions -->
+        <div>
+            <div class="glass-panel">
+                <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1.5rem;">
+                    <i class="fas fa-inbox" style="color: var(--neon-yellow);"></i> Yangi Arizalar
+                    {% if submissions %}<span style="background: var(--neon-yellow); color: #000; font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 20px; font-weight: 800; margin-left: 0.5rem;">{{ submissions.count }}</span>{% endif %}
+                </h3>
+
+                <div id="submissions-list">
+                {% for sub in submissions %}
+                <div id="sub-{{ sub.id }}" class="submission-item">
+                    <div>
+                        <div style="font-weight: 600; font-size: 0.9rem;">{{ sub.name }}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem;">{{ sub.address }}</div>
+                        <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.1rem;">
+                            📍 {{ sub.latitude|floatformat:4 }}, {{ sub.longitude|floatformat:4 }}
+                        </div>
+                        <div style="font-size: 0.72rem; color: var(--text-secondary);">
+                            📅 {{ sub.created_at|date:"d.m.Y H:i" }}
+                        </div>
+                    </div>
+                    <div class="sub-actions">
+                        <button class="sub-btn approve" onclick="approveSubmission({{ sub.id }})">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="sub-btn reject" onclick="rejectSubmission({{ sub.id }})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                {% empty %}
+                <div style="text-align: center; padding: 3rem 0; color: var(--text-secondary);">
+                    <i class="fas fa-inbox" style="font-size: 2rem; opacity: 0.3; display:block; margin-bottom: 0.75rem;"></i>
+                    <p>Hozircha yangi arizalar yo'q.</p>
+                </div>
+                {% endfor %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+function approveSubmission(subId) {
+    if (!confirm('Ushbu arizani tasdiqlaysizmi?')) return;
+    fetch('/api/admin/approve/' + subId + '/', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('sub-' + subId).style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('sub-' + subId).remove();
+                }, 400);
+                alert('✅ ' + data.message);
+            } else {
+                alert('❌ ' + data.error);
+            }
+        });
+}
+
+function rejectSubmission(subId) {
+    if (!confirm('Ushbu arizani rad etasizmi?')) return;
+    fetch('/api/admin/reject/' + subId + '/', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('sub-' + subId).style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('sub-' + subId).remove();
+                }, 400);
+            } else {
+                alert('❌ ' + data.error);
+            }
+        });
+}
+
+function createWorker() {
+    const username = document.getElementById('new-username').value.trim();
+    const password = document.getElementById('new-password').value;
+    const stationId = document.getElementById('new-station-id').value;
+    const msg = document.getElementById('worker-msg');
+
+    if (!username || !password || !stationId) {
+        showMsg(msg, false, 'Barcha maydonlarni to\'ldiring!');
+        return;
+    }
+
+    fetch('/api/admin/workers/create/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, station_id: stationId })
+    })
+    .then(r => r.json())
+    .then(data => {
+        showMsg(msg, data.success, data.success ? data.message : data.error);
+        if (data.success) {
+            document.getElementById('new-username').value = '';
+            document.getElementById('new-password').value = '';
+            document.getElementById('new-station-id').value = '';
+        }
+    });
+}
+
+function adminAddStation() {
+    const name = document.getElementById('as-name').value.trim();
+    const address = document.getElementById('as-address').value.trim();
+    const lat = document.getElementById('as-lat').value;
+    const lng = document.getElementById('as-lng').value;
+    const region = document.getElementById('as-region').value.trim();
+    const district = document.getElementById('as-district').value.trim();
+    const phone = document.getElementById('as-phone').value.trim();
+    const price = document.getElementById('as-price').value;
+    const msg = document.getElementById('add-station-msg');
+
+    if (!name || !address || !lat || !lng) {
+        showMsg(msg, false, 'Nomi, manzili va koordinatalarni to\'ldiring!');
+        return;
+    }
+
+    fetch('/api/admin/stations/add/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, address, latitude: lat, longitude: lng, region, district, phone, price })
+    })
+    .then(r => r.json())
+    .then(data => {
+        showMsg(msg, data.success, data.success ? data.message : data.error);
+        if (data.success) {
+            ['as-name','as-address','as-lat','as-lng','as-phone','as-district'].forEach(id => {
+                document.getElementById(id).value = '';
+            });
+            document.getElementById('as-price').value = '3800';
+            // 2 soniyadan keyin sahifani yangilab yangi zapravkani ro'yxatga qo'shamiz
+            setTimeout(() => location.reload(), 2000);
+        }
+    });
+}
+
+function showMsg(el, success, text) {
+    el.style.display = 'block';
+    el.style.background = success ? 'rgba(0,255,136,0.1)' : 'rgba(255,51,102,0.1)';
+    el.style.border = `1px solid ${success ? 'var(--neon-green)' : 'var(--neon-red)'}`;
+    el.style.color = success ? 'var(--neon-green)' : 'var(--neon-red)';
+    el.innerHTML = `<i class="fas fa-${success ? 'check' : 'exclamation'}-circle"></i> ${text}`;
+    setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+</script>
+{% endblock %}

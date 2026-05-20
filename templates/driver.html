@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="main-container">
+    
+    <!-- Left Column: Controls and Stations List -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem; min-width: 0;">
+        
+        <!-- Controls Panel -->
+        <div class="glass-panel controls-card" style="margin-bottom: 1.5rem;">
+            <h3 style="font-weight: 700; font-size: 1.2rem; display:flex; align-items:center; gap:0.5rem;">
+                <i class="fas fa-search" style="color: var(--neon-blue);"></i> 
+                Zapravkalarni qidirish
+            </h3>
+            
+            <!-- Search Bar -->
+            <div class="search-wrapper">
+                <i class="fas fa-search"></i>
+                <input type="text" id="search-input" placeholder="Zapravka nomi yoki manzilini yozing...">
+            </div>
+            
+            <!-- Region/District Filters -->
+            <div class="filter-grid">
+                <select id="region-filter">
+                    <option value="">Barcha viloyatlar</option>
+                </select>
+                <select id="district-filter" disabled>
+                    <option value="">Barcha tumanlar</option>
+                </select>
+            </div>
+            
+            
+            <!-- Location Buttons -->
+            <div class="action-row">
+                <button id="location-btn" class="btn accent" onclick="useCurrentLocation()">
+                    <i class="fas fa-location-arrow"></i> Mening joylashuvim
+                </button>
+                {% if user.is_superuser %}
+                <button class="btn" onclick="openAddStationModal()">
+                    <i class="fas fa-plus"></i> Zapravka qo'shish
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Methane Stations List Container -->
+        <div id="stations-list-container" class="stations-list">
+            <!-- Dynamic station cards will be rendered here by JS -->
+            <div class="glass-panel" style="text-align: center; padding: 3rem;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--neon-blue); margin-bottom: 1rem;"></i>
+                <p style="color: var(--text-secondary);">Zapravkalar yuklanmoqda...</p>
+            </div>
+        </div>
+        
+    </div>
+
+    <!-- Right Column: Interactive Dark Map -->
+    <div style="min-width: 0;">
+        <div class="glass-panel" style="padding: 0.5rem;">
+            <div id="map-container"></div>
+        </div>
+    </div>
+
+</div>
+
+<!-- OFFLINE BANNER TOAST -->
+<div id="offline-toast" class="toast-offline">
+    <i class="fas fa-wifi-slash"></i>
+    <span>Internet aloqasi uzildi! Offline rejimdasiz.</span>
+</div>
+
+<!-- ADD METHANE STATION MODAL -->
+<div id="add-station-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-plus-circle" style="color: var(--neon-green);"></i> Yangi Zapravka Qo'shish</h3>
+            <button class="close-btn" onclick="closeAddStationModal()">&times;</button>
+        </div>
+        <form id="station-suggest-form" onsubmit="submitStationSuggestion(event)">
+            <div class="modal-body">
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem; line-height: 1.4;">
+                    <i class="fas fa-info-circle" style="color: var(--neon-blue);"></i> 
+                    Xaritadan biron bir joyni bossangiz, o'sha joyning GPS koordinatalari quyida avtomatik to'ldiriladi!
+                </p>
+                <div class="form-group">
+                    <label for="modal-name">Zapravka nomi <span style="color:var(--neon-red);">*</span></label>
+                    <input type="text" id="modal-name" required placeholder="Masalan: Yunusobod Metan yo'li">
+                </div>
+                <div class="form-group">
+                    <label for="modal-address">To'liq Manzili <span style="color:var(--neon-red);">*</span></label>
+                    <input type="text" id="modal-address" required placeholder="Masalan: Yunusobod tumani, A.Temur ko'chasi 5-uy">
+                </div>
+                <div class="filter-grid">
+                    <div class="form-group">
+                        <label for="modal-region">Viloyat <span style="color:var(--neon-red);">*</span></label>
+                        <select id="modal-region" required>
+                            <option value="">— Tanlang —</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="modal-district">Tuman <span style="color:var(--neon-red);">*</span></label>
+                        <select id="modal-district" required disabled>
+                            <option value="">— Tanlang —</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-grid">
+                    <div class="form-group">
+                        <label for="modal-lat">Kenglik (Latitude) <span style="color:var(--neon-red);">*</span></label>
+                        <input type="number" step="any" id="modal-lat" required placeholder="41.3110">
+                    </div>
+                    <div class="form-group">
+                        <label for="modal-lng">Uzunlik (Longitude) <span style="color:var(--neon-red);">*</span></label>
+                        <input type="number" step="any" id="modal-lng" required placeholder="69.2405">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="modal-phone">Aloqa raqami (Optional)</label>
+                    <input type="text" id="modal-phone" placeholder="Masalan: +998901234567">
+                </div>
+                <button type="submit" id="modal-submit-btn" class="btn accent" style="margin-top: 1rem; width: 100%;">
+                    Taklif yuborish
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- TELEGRAM FLOATING WIDGET -->
+<div id="tg-widget" style="position:fixed; bottom: 1.5rem; right: 1.5rem; z-index: 3000; display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem;">
+    <!-- Buttons (hidden by default) -->
+    <div id="tg-menu" style="display:none; flex-direction: column; gap: 0.5rem; align-items: flex-end;">
+        <a href="https://t.me/smartmetan_uz" target="_blank"
+           style="display:flex; align-items:center; gap:0.6rem; background:rgba(15,15,20,0.95); border:1px solid rgba(0,136,204,0.4); color:white; padding:0.6rem 1rem; border-radius:30px; text-decoration:none; font-size:0.85rem; font-weight:600; backdrop-filter:blur(10px); white-space:nowrap; box-shadow: 0 4px 15px rgba(0,136,204,0.2); transition: all 0.2s;"
+           onmouseover="this.style.borderColor='rgba(0,136,204,0.8)'; this.style.boxShadow='0 4px 20px rgba(0,136,204,0.35)'"
+           onmouseout="this.style.borderColor='rgba(0,136,204,0.4)'; this.style.boxShadow='0 4px 15px rgba(0,136,204,0.2)'">
+            <i class="fab fa-telegram-plane" style="font-size:1.1rem; color:#0088cc;"></i>
+            📢 Kanal (Yangiliklar)
+        </a>
+        <a href="https://t.me/smartmetan_drivers" target="_blank"
+           style="display:flex; align-items:center; gap:0.6rem; background:rgba(15,15,20,0.95); border:1px solid rgba(0,200,150,0.4); color:white; padding:0.6rem 1rem; border-radius:30px; text-decoration:none; font-size:0.85rem; font-weight:600; backdrop-filter:blur(10px); white-space:nowrap; box-shadow: 0 4px 15px rgba(0,200,150,0.15); transition: all 0.2s;"
+           onmouseover="this.style.borderColor='rgba(0,200,150,0.8)'; this.style.boxShadow='0 4px 20px rgba(0,200,150,0.3)'"
+           onmouseout="this.style.borderColor='rgba(0,200,150,0.4)'; this.style.boxShadow='0 4px 15px rgba(0,200,150,0.15)'">
+            <i class="fas fa-users" style="font-size:1rem; color:#00c896;"></i>
+            💬 Guruh (Haydovchilar)
+        </a>
+    </div>
+    <!-- Main Telegram Button -->
+    <button id="tg-toggle-btn" onclick="toggleTgMenu()"
+       style="width:56px; height:56px; border-radius:50%; background: linear-gradient(135deg, #0088cc, #00c2ff); border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow: 0 4px 20px rgba(0,136,204,0.5); transition: all 0.3s; font-size:1.5rem; color:white;">
+        <i class="fab fa-telegram-plane"></i>
+    </button>
+</div>
+
+<script>
+function toggleTgMenu() {
+    const menu = document.getElementById('tg-menu');
+    const btn = document.getElementById('tg-toggle-btn');
+    const isOpen = menu.style.display === 'flex';
+    menu.style.display = isOpen ? 'none' : 'flex';
+    btn.style.transform = isOpen ? 'scale(1) rotate(0deg)' : 'scale(1.1) rotate(20deg)';
+    btn.style.boxShadow = isOpen ? '0 4px 20px rgba(0,136,204,0.5)' : '0 6px 25px rgba(0,136,204,0.7)';
+}
+</script>
+
+{% endblock %}

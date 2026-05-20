@@ -1,0 +1,63 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Smart Metan - Navbatlarni real vaqtda monitoring qilish{% endblock %}</title>
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom Premium Stylesheet -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    
+    <!-- Leaflet.js Map CSS & JS (Only loaded for map views) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+    <!-- Header & Brand Bar -->
+    <header>
+        <div class="header-container">
+            <a href="{% url 'driver_page' %}" class="logo">
+                <i class="fas fa-gas-pump"></i>
+                <span>Smart Metan</span>
+            </a>
+            <div class="nav-links">
+                {% if request.user.is_authenticated %}
+                    {% if request.user.is_superuser %}
+                        <a href="{% url 'admin_dashboard' %}" class="nav-btn primary">
+                            <i class="fas fa-chart-pie"></i> Admin Panel
+                        </a>
+                    {% else %}
+                        <a href="{% url 'cashier_page' %}" class="nav-btn primary">
+                            <i class="fas fa-user-tie"></i> Kassir paneli
+                        </a>
+                    {% endif %}
+                    <a href="{% url 'cashier_logout' %}" class="nav-btn">
+                        <i class="fas fa-sign-out-alt"></i> Chiqish
+                    </a>
+                {% else %}
+                    <a href="{% url 'cashier_page' %}" class="nav-btn primary">
+                        <i class="fas fa-sign-in-alt"></i> Kassir Kirishi
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Core App Logic -->
+    <script src="{% static 'js/regions.js' %}"></script>
+    <script src="{% static 'js/app.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

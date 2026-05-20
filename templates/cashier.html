@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Kassir Paneli - {{ station.name }}{% endblock %}
+
+{% block content %}
+<div class="cashier-dashboard-container">
+
+    <!-- Station Header -->
+    <div class="glass-panel cashier-station-info" style="margin-bottom: 1.5rem;">
+        <div style="font-size: 0.85rem; color: var(--neon-blue); font-weight: 600; margin-bottom: 0.5rem; letter-spacing: 1px; text-transform: uppercase;">
+            <i class="fas fa-user-tie"></i> {{ request.user.username }} — Kassir Paneli
+        </div>
+        <h2>⛽ {{ station.name }}</h2>
+        <p><i class="fas fa-map-marker-alt" style="color: var(--neon-red);"></i> {{ station.address }}</p>
+        <div id="current-status-badge" style="margin-top: 1rem; display: inline-block; padding: 0.4rem 1.2rem; border-radius: 30px; font-weight: 700; font-size: 0.9rem;">
+            Yuklanmoqda...
+        </div>
+        <div style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary);">
+            <i class="fas fa-clock"></i> Taxminiy kutish: <b id="current-eta">—</b>
+        </div>
+    </div>
+
+    <!-- Geofencing Warning (GPS check) -->
+    <div id="geo-warning" class="geofencing-banner" style="display:none;">
+        <i class="fas fa-exclamation-triangle"></i>
+        <div>
+            <b>GPS tekshiruvi:</b> Siz zapravkadan uzoqdasiz. Status o'zgartirish uchun zapravka hududida (200m ichida) bo'lishingiz kerak yoki <b>Demo rejimni</b> yoqing.
+        </div>
+    </div>
+
+    <!-- Demo Override Toggle -->
+    <div class="toggle-group" style="margin-bottom: 1.5rem; border-color: rgba(255,214,0,0.2);">
+        <div class="toggle-info">
+            <h4><i class="fas fa-flask" style="color: var(--neon-yellow);"></i> Demo Rejim (GPS cheklovini o'chirish)</h4>
+            <p>Test paytida GPS cheklovini chetlab o'tish uchun</p>
+        </div>
+        <label class="switch">
+            <input type="checkbox" id="demo-override-toggle">
+            <span class="slider blue"></span>
+        </label>
+    </div>
+
+    <!-- 4 Big Status Buttons -->
+    <div class="glass-panel" style="margin-bottom: 1.5rem; padding: 1.2rem;">
+        <h4 style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 1px;">
+            <i class="fas fa-traffic-light"></i> Navbat Holati
+        </h4>
+        <div class="cashier-status-grid">
+            <button class="status-btn" id="btn-GREEN" onclick="setStatus('GREEN')">
+                <i class="fas fa-circle" style="color: var(--neon-green);"></i>
+                <span>Kam Navbat</span>
+                <small style="font-size: 0.75rem; opacity: 0.7;">1–5 ta mashina</small>
+            </button>
+            <button class="status-btn" id="btn-YELLOW" onclick="setStatus('YELLOW')">
+                <i class="fas fa-circle" style="color: var(--neon-yellow);"></i>
+                <span>O'rtacha Navbat</span>
+                <small style="font-size: 0.75rem; opacity: 0.7;">6–15 ta mashina</small>
+            </button>
+            <button class="status-btn" id="btn-RED" onclick="setStatus('RED')">
+                <i class="fas fa-circle" style="color: var(--neon-red);"></i>
+                <span>Ko'p Navbat</span>
+                <small style="font-size: 0.75rem; opacity: 0.7;">15+ ta mashina</small>
+            </button>
+            <button class="status-btn" id="btn-BLACK" onclick="setStatus('BLACK')">
+                <i class="fas fa-moon" style="color: var(--text-secondary);"></i>
+                <span>Yopiq</span>
+                <small style="font-size: 0.75rem; opacity: 0.7;">Ishlamayapti</small>
+            </button>
+        </div>
+    </div>
+
+    <!-- Power & Pressure Toggles -->
+    <div class="glass-panel" style="margin-bottom: 1.5rem;">
+        <h4 style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 1px;">
+            <i class="fas fa-tools"></i> Texnik Holat
+        </h4>
+
+        <!-- Power Toggle -->
+        <div class="toggle-group" style="border-color: rgba(0,240,255,0.15);">
+            <div class="toggle-info">
+                <h4><i class="fas fa-bolt" style="color: var(--neon-blue);"></i> Elektr Energiyasi (Svet)</h4>
+                <p>Zapravkada tok bor yoki yo'qligini belgilang</p>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="power-toggle" checked onchange="updateStation()">
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <!-- Gas Pressure Select -->
+        <div style="margin-top: 1rem;">
+            <label style="font-size: 0.85rem; color: var(--text-secondary); display:block; margin-bottom:0.5rem;">
+                <i class="fas fa-tachometer-alt"></i> Gaz Bosimi
+            </label>
+            <select id="pressure-select" onchange="updateStation()" style="width:100%; padding: 0.8rem; border-radius: 12px;">
+                <option value="HIGH">✅ Yaxshi (Normal bosim)</option>
+                <option value="LOW">⚠️ Past (Bosim kamaygan)</option>
+                <option value="NONE">❌ Bosim yo'q (Gaz kelmayapti)</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Price Update -->
+    <div class="glass-panel" style="margin-bottom: 1.5rem;">
+        <h4 style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 1px;">
+            <i class="fas fa-money-bill-wave"></i> Gaz Narxini Yangilash
+        </h4>
+        <div style="display:flex; gap: 1rem; align-items: center;">
+            <input type="number" id="price-input" value="{{ station.price }}" min="1000" max="20000" step="50"
+                   style="flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--panel-border); border-radius:12px; padding:0.8rem; color:var(--text-primary); font-size:1rem; outline:none;">
+            <span style="color:var(--text-secondary); white-space:nowrap;">so'm / m³</span>
+            <button class="btn accent" onclick="updateStation()" style="white-space:nowrap; flex-shrink:0;">
+                <i class="fas fa-save"></i> Saqlash
+            </button>
+        </div>
+    </div>
+
+    <!-- Success/Error Message -->
+    <div id="update-message" style="display:none; padding: 0.8rem 1rem; border-radius: 12px; font-size: 0.9rem; margin-bottom: 1.5rem; text-align:center;"></div>
+
+</div>
+
+<script>
+const STATION_LAT = {{ station.latitude }};
+const STATION_LNG = {{ station.longitude }};
+let currentStatus = '{{ station.status }}';
+let cashierLat = null;
+let cashierLng = null;
+
+// GPS olamiz
+if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+        cashierLat = pos.coords.latitude;
+        cashierLng = pos.coords.longitude;
+    });
+}
+
+// Sahifa yuklanganda joriy holatni ko'rsatamiz
+document.addEventListener('DOMContentLoaded', () => {
+    highlightActiveBtn(currentStatus);
+    document.getElementById('power-toggle').checked = {{ station.has_power|yesno:"true,false" }};
+    document.getElementById('pressure-select').value = '{{ station.gas_pressure }}';
+    updateStatusBadge(currentStatus, '{{ station.estimated_wait_time }}');
+});
+
+function setStatus(newStatus) {
+    currentStatus = newStatus;
+    highlightActiveBtn(newStatus);
+    updateStation();
+}
+
+function highlightActiveBtn(status) {
+    ['GREEN','YELLOW','RED','BLACK'].forEach(s => {
+        const btn = document.getElementById('btn-' + s);
+        btn.className = 'status-btn';
+    });
+    const activeBtn = document.getElementById('btn-' + status);
+    if (activeBtn) {
+        activeBtn.classList.add('active-' + status.toLowerCase());
+    }
+}
+
+function updateStation() {
+    const demoOverride = document.getElementById('demo-override-toggle').checked;
+    const hasPower = document.getElementById('power-toggle').checked;
+    const pressure = document.getElementById('pressure-select').value;
+    const price = parseInt(document.getElementById('price-input').value);
+
+    const payload = {
+        status: currentStatus,
+        has_power: hasPower,
+        gas_pressure: pressure,
+        price: price,
+        demo_override: demoOverride,
+        lat: cashierLat,
+        lng: cashierLng
+    };
+
+    fetch('/api/cashier/update/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        const msg = document.getElementById('update-message');
+        msg.style.display = 'block';
+        if (data.success) {
+            msg.style.background = 'rgba(0,255,136,0.1)';
+            msg.style.border = '1px solid var(--neon-green)';
+            msg.style.color = 'var(--neon-green)';
+            msg.innerHTML = '<i class="fas fa-check-circle"></i> ' + data.message;
+            document.getElementById('geo-warning').style.display = 'none';
+            if (data.estimated_wait) {
+                document.getElementById('current-eta').textContent = data.estimated_wait;
+            }
+        } else {
+            msg.style.background = 'rgba(255,51,102,0.1)';
+            msg.style.border = '1px solid var(--neon-red)';
+            msg.style.color = 'var(--neon-red)';
+            msg.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + data.error;
+            if (data.error && data.error.includes('uzoq')) {
+                document.getElementById('geo-warning').style.display = 'flex';
+            }
+        }
+        setTimeout(() => msg.style.display = 'none', 3500);
+    })
+    .catch(() => {
+        const msg = document.getElementById('update-message');
+        msg.style.display = 'block';
+        msg.style.background = 'rgba(255,51,102,0.1)';
+        msg.style.border = '1px solid var(--neon-red)';
+        msg.style.color = 'var(--neon-red)';
+        msg.innerHTML = '<i class="fas fa-wifi-slash"></i> Server bilan aloqa yo\'q!';
+    });
+}
+
+function updateStatusBadge(status, eta) {
+    const badge = document.getElementById('current-status-badge');
+    const colors = {
+        GREEN: { bg: 'rgba(0,255,136,0.12)', color: '#00ff88', border: 'rgba(0,255,136,0.3)', label: '🟢 Kam navbat' },
+        YELLOW: { bg: 'rgba(255,214,0,0.12)', color: '#ffd600', border: 'rgba(255,214,0,0.3)', label: '🟡 O\'rtacha navbat' },
+        RED: { bg: 'rgba(255,51,102,0.12)', color: '#ff3366', border: 'rgba(255,51,102,0.3)', label: '🔴 Ko\'p navbat' },
+        BLACK: { bg: 'rgba(55,65,81,0.2)', color: '#9ca3af', border: 'rgba(55,65,81,0.5)', label: '⚫ Yopiq' },
+        WHITE: { bg: 'rgba(255,255,255,0.05)', color: '#e5e7eb', border: 'rgba(255,255,255,0.1)', label: '⚪ Ma\'lumot yo\'q' },
+    };
+    const c = colors[status] || colors.WHITE;
+    badge.style.background = c.bg;
+    badge.style.color = c.color;
+    badge.style.border = '1px solid ' + c.border;
+    badge.textContent = 'Joriy holat: ' + c.label;
+    if (eta) document.getElementById('current-eta').textContent = eta;
+}
+</script>
+{% endblock %}

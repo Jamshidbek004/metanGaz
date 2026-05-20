@@ -1,0 +1,13 @@
+# Django .gitignore
+*.pyc
+*~
+__pycache__/
+myenv/
+venv/
+.env
+db.sqlite3
+/static/collected/
+.DS_Store
+.idea/
+.vscode/
+*.log
